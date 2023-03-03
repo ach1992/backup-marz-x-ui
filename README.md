@@ -16,7 +16,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/ach1992/backup-marz-x-ui/main/
 > **You need to install this script to all your servers.**
 
 # a special thanks to
-- [vaxilu](https://github.com/AC-Lover)
+- [AC-Lover](https://github.com/AC-Lover)
 
 ## Stargazers over time
 
