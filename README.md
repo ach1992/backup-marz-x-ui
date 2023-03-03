@@ -1,5 +1,5 @@
 # backup
 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/AC-Lover/backup/main/backup.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/ach1992/backup-marz-x-ui/main/backup.sh)
 ``` 
