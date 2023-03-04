@@ -14,6 +14,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/ach1992/backup-marz-x-ui/main/
 - User ID number
 
 > **You need to install this script to all your servers.**
+> **You need to start bot before running the script.**
 
 ## A special thanks to
 - [AC-Lover](https://github.com/AC-Lover)
