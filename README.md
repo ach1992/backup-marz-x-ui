@@ -1,6 +1,6 @@
-# Backup Marzban and X-UI panel
+# Backup Marzban, X-UI and Hiddify panel
 
-> **Create automatically backup from Marzban and X-UI databases and send them to Telegram bot.**
+> **Create automatically backup from Marzban, X-UI and Hiddify databases and send them to Telegram bot.**
 
 ## Install & Upgrade
 
