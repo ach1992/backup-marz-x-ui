@@ -3,7 +3,8 @@
 # Bot token
 # گرفتن توکن ربات از کاربر و ذخیره آن در متغیر tk
 while [[ -z "$tk" ]]; do
-    read -p 'Bot token: ' tk
+    echo "Bot token: "
+    read -r tk
     if [[ $tk == $'\0' ]]; then
         echo "Invalid input. Token cannot be empty."
         unset tk
@@ -13,7 +14,8 @@ done
 # Chat id
 # گرفتن Chat ID از کاربر و ذخیره آن در متغیر chatid
 while [[ -z "$chatid" ]]; do
-    read -p 'Chat id: ' chatid
+    echo "Chat id: "
+    read -r chatid
     if [[ $chatid == $'\0' ]]; then
         echo "Invalid input. Chat id cannot be empty."
         unset chatid
@@ -25,12 +27,14 @@ done
 
 # Caption
 # گرفتن عنوان برای فایل پشتیبان و ذخیره آن در متغیر caption
-read -p 'Caption (for example, your domain, to identify the database file more easily): ' caption
+echo "Caption (for example, your domain, to identify the database file more easily): "
+read -r caption
 
 # Cronjob
 # تعیین زمانی برای اجرای این اسکریپت به صورت دوره‌ای
 while true; do
-    read -p 'Cronjob (minutes and hours) (e.g : 30 6 or 0 12) : ' minute hour
+    echo "Cronjob (minutes and hours) (e.g : 30 6 or 0 12) : "
+    read -r minute hour
     if [[ $minute == 0 ]] && [[ $hour == 0 ]]; then
         cron_time="* * * * *"
         break
@@ -52,7 +56,8 @@ done
 # x-ui or marzban or hiddify
 # گرفتن نوع نرم افزاری که می‌خواهیم پشتیبانی از آن بگیریم و ذخیره آن در متغیر xmh
 while [[ -z "$xmh" ]]; do
-    read -p 'x-ui or marzban or hiddify? [x/m/h] : ' xmh
+    echo "x-ui or marzban or hiddify? [x/m/h] : "
+    read -r xmh
     if [[ $xmh == $'\0' ]]; then
         echo "Invalid input. Please choose x, m or h."
         unset xmh
@@ -63,7 +68,8 @@ while [[ -z "$xmh" ]]; do
 done
 
 while [[ -z "$crontabs" ]]; do
-    read -p 'Would you like the previous crontabs to be cleared? [y/n] : ' crontabs
+    echo "Would you like the previous crontabs to be cleared? [y/n] : "
+    read -r crontabs
     if [[ $crontabs == $'\0' ]]; then
         echo "Invalid input. Please choose y or n."
         unset crontabs
@@ -90,16 +96,56 @@ else
   exit 1
 fi
 
+if [ -d "/var/lib/marzban/mysql" ]; then
 
-ZIP="zip -r /root/ac-backup-m.zip ${dir}/* /var/lib/marzban/*"
+  sed -i -e 's/\s*=\s*/=/' -e 's/\s*:\s*/:/' -e 's/^\s*//' /opt/marzban/.env
+
+  docker exec marzban-mysql-1 bash -c "mkdir -p /var/lib/mysql/db-backup"
+  source /opt/marzban/.env
+
+    cat > "/var/lib/marzban/mysql/ac-backup.sh" <<EOL
+#!/bin/bash
+
+USER="root"
+PASSWORD="$MYSQL_ROOT_PASSWORD"
+
+
+databases=\$(mysql -h 127.0.0.1 --user=\$USER --password=\$PASSWORD -e "SHOW DATABASES;" | tr -d "| " | grep -v Database)
+
+for db in \$databases; do
+    if [[ "\$db" != "information_schema" ]] && [[ "\$db" != "mysql" ]] && [[ "\$db" != "performance_schema" ]] && [[ "\$db" != "sys" ]] ; then
+        echo "Dumping database: \$db"
+		mysqldump -h 127.0.0.1 --force --opt --user=\$USER --password=\$PASSWORD --databases \$db > /var/lib/mysql/db-backup/\$db.sql
+
+    fi
+done
+
+EOL
+chmod +x /var/lib/marzban/mysql/ac-backup.sh
+
+ZIP=$(cat <<EOF
+docker exec marzban-mysql-1 bash -c "/var/lib/mysql/ac-backup.sh"
+zip -r /root/ac-backup-m.zip /opt/marzban/* /var/lib/marzban/* /opt/marzban/.env -x /var/lib/marzban/mysql/\*
+zip -r /root/ac-backup-m.zip /var/lib/marzban/mysql/db-backup/*
+rm -rf /var/lib/marzban/mysql/db-backup/*
+EOF
+)
+
+    else
+      ZIP="zip -r /root/ac-backup-m.zip ${dir}/* /var/lib/marzban/* /opt/marzban/.env"
+fi
+
 ACh1992="marzban backup"
 
 # x-ui backup
 # ساخت فایل پشتیبانی برای نرم‌افزار X-UI و ذخیره آن در فایل ac-backup.zip
 elif [[ "$xmh" == "x" ]]; then
 
-if dbDir=$(find /etc -type d -iname "x-ui*" -print -quit); then
+if dbDir=$(find /etc /opt/freedom -type d -iname "x-ui*" -print -quit); then
   echo "The folder exists at $dbDir"
+  if [[ $dbDir == *"/opt/freedom/x-ui"* ]]; then
+     dbDir="${dbDir}/db/"
+  fi
 else
   echo "The folder does not exist."
   exit 1
@@ -143,8 +189,21 @@ echo "Please choose m or x or h only !"
 exit 1
 fi
 
-export IP=$(hostname -I)
+
+trim() {
+    # remove leading and trailing whitespace/lines
+    local var="$*"
+    # remove leading whitespace characters
+    var="${var#"${var%%[![:space:]]*}"}"
+    # remove trailing whitespace characters
+    var="${var%"${var##*[![:space:]]}"}"
+    echo -n "$var"
+}
+
+IP=$(ip route get 1 | sed -n 's/^.*src \([0-9.]*\) .*$/\1/p')
 caption="${caption}\n\n${ACh1992}\n<code>${IP}</code>\nCreated by @ACh1992 - https://github.com/ach1992"
+comment=$(echo -e "$caption" | sed 's/<code>//g;s/<\/code>//g')
+comment=$(trim "$comment")
 
 # install zip
 # نصب پکیج zip
@@ -153,9 +212,12 @@ sudo apt install zip -y
 # send backup to telegram
 # ارسال فایل پشتیبانی به تلگرام
 cat > "/root/ac-backup-${xmh}.sh" <<EOL
+rm -rf /root/ac-backup-${xmh}.zip
 $ZIP
+echo -e "$comment" | zip -z /root/ac-backup-${xmh}.zip
 curl -F chat_id="${chatid}" -F caption=\$'${caption}' -F parse_mode="HTML" -F document=@"/root/ac-backup-${xmh}.zip" https://api.telegram.org/bot${tk}/sendDocument
 EOL
+
 
 # Add cronjob
 # افزودن کرانجاب جدید برای اجرای دوره‌ای این اسکریپت
