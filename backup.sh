@@ -18,10 +18,18 @@ prompt_input() {
             echo "$value is invalid. $error_msg"
             continue
         fi
-        eval "$var_name=\"$value\""
+        eval "$var_name=\"\$value\""
         break
     done
 }
+
+# --- [ Initial Setup ] ---
+set -e  # Stop script execution on any error
+
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root"
+    exit 1
+fi
 
 # --- [ Inputs ] ---
 prompt_input tk "Bot token: " "" "Token cannot be empty."
@@ -52,6 +60,7 @@ done
 prompt_input xmhs "x-ui or s-ui or marzban or hiddify? [x/s/m/h] : " "^[xmhs]$" "Please choose x, s, m or h."
 prompt_input crontabs "Would you like the previous crontabs to be cleared? [y/n] : " "^[yn]$" "Please choose y or n."
 
+# Clear previous crontabs if selected
 [[ "$crontabs" == "y" ]] && sudo crontab -l | grep -vE '/root/ac-backup.+\.sh' | crontab -
 
 # --- [ Backup Logic per Type ] ---
@@ -90,8 +99,12 @@ EOL
 #!/bin/bash
 docker exec marzban-mysql-1 bash -c "/var/lib/mysql/ac-backup.sh"
 zip -r /root/ac-backup-m.zip /opt/marzban/* /var/lib/marzban/* /opt/marzban/.env -x "$path/*"
-zip -r /root/ac-backup-m.zip "$path/db-backup/*"
-rm -rf "$path/db-backup/*"
+if find "$path/db-backup/" -type f | grep -q .; then
+    zip -r /root/ac-backup-m.zip "$path/db-backup/"*
+else
+    echo "No DB backups found to zip."
+fi
+rm -rf "$path/db-backup/"*
 EOF
 )
     ACh="marzban backup"
@@ -155,7 +168,6 @@ EOL
 
 chmod +x "/root/ac-backup-${xmhs}.sh"
 { crontab -l -u root; echo "${cron_time} /bin/bash /root/ac-backup-${xmhs}.sh >/dev/null 2>&1"; } | crontab -u root -
-
 bash "/root/ac-backup-${xmhs}.sh"
 
 echo -e "\nDone\n"
