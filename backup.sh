@@ -204,7 +204,8 @@ fi
 # نوشتن اسکریپت نهایی
 cat > "/root/ac-backup-${xmhs}.sh" <<EOL
 rm -rf /root/ac-backup-${xmhs}.zip
-$ZIP
+$ZIP &
+wait $!
 echo -e "$comment" | zip -z /root/ac-backup-${xmhs}.zip
 curl -F chat_id="${chatid}" -F caption=\$'${caption}' -F parse_mode="HTML" -F document=@"/root/ac-backup-${xmhs}.zip" https://api.telegram.org/bot${tk}/sendDocument
 EOL
