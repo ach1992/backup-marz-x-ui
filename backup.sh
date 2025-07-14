@@ -8,7 +8,7 @@ readonly DATABASE_SUFFIX="${TAG}sql"
 readonly LOGS_SUFFIX="${TAG}log"
 readonly VERSION="v0.4.0"
 readonly OWNER="@ACh1992"
-readonly SPONSORTEXT="چیزی برای گفتن داری اینجا کلیک کن"
+readonly SPONSORTEXT="Nothing to say!"
 readonly SPONSORLINK="https://t.me/ACh1992"
 
 
