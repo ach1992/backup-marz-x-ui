@@ -2,7 +2,7 @@
 
 > **Create automatically backup from Marzban, X-UI and Hiddify databases and send them to Telegram bot.**
 
-## Install Former Version
+## Install Former & Lite Version
 
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/ach1992/backup-marz-x-ui/v1.0.2/backup.sh)
