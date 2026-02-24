@@ -179,7 +179,7 @@ start_backup() {
 generate_remark() {
     clear
     print "[REMARK]\n"
-    print "We need a remark for the backup file (e.g., Master, panel, ErfJab).\n"
+    print "We need a remark for the backup file (e.g., Master, panel, Pasargard).\n"
 
     while true; do
         input "Enter a remark: " REMARK
