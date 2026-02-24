@@ -6,7 +6,7 @@ readonly TAG="_backuper."
 readonly BACKUP_SUFFIX="${TAG}zip"
 readonly DATABASE_SUFFIX="${TAG}sql"
 readonly LOGS_SUFFIX="${TAG}log"
-readonly VERSION="v0.4.0"
+readonly VERSION="v0.6.0"
 readonly OWNER="@ACh1992"
 readonly SPONSORTEXT="Nothing to say!"
 readonly SPONSORLINK="https://t.me/ACh1992"
@@ -72,7 +72,7 @@ update_os() {
 
 install_dependencies() {
     local package_manager=$(detect_package_manager)
-    local packages=("wget" "zip" "cron" "msmtp" "mutt")
+    local packages=("wget" "zip" "cron" "msmtp" "mutt" "postgresql-client")
 
     log "Installing dependencies: ${packages[*]}..."
     
@@ -179,7 +179,7 @@ start_backup() {
 generate_remark() {
     clear
     print "[REMARK]\n"
-    print "We need a remark for the backup file (e.g., Master, panel, ACh).\n"
+    print "We need a remark for the backup file (e.g., Master, panel, ErfJab).\n"
 
     while true; do
         input "Enter a remark: " REMARK
@@ -258,14 +258,21 @@ generate_template() {
     print "1) X-ui"
     print "2) S-ui"
     print "3) Hiddify"
-    print "4) Marzneshin"
-    print "5) Marzneshin Logs"
-    print "6) Marzban"
-    print "7) Marzban Logs"
-    print "8) MirzaBot"
-    print "9) WalBot"
-    print "10) HolderBot"
-    print "11) MarzHelp + Marzban"
+    print "4) Remnawave"
+    print "5) Rebecca"
+    print "6) Marzneshin"
+    print "7) Marzneshin Logs"
+    print "8) Marzban"
+    print "9) Marzban Logs"
+    print "10) MirzaBot"
+    print "11) Walpanel"
+    print "12) HolderBot"
+    print "13) MarzHelp + Marzban"
+    print "14) Phantom"
+    print "15) OvPanel"
+    print "16) OvNode"
+    print "17) MarzGozir"
+    print "18) PasarGuard"
     print "0) Custom"
     print ""
     while true; do
@@ -284,35 +291,63 @@ generate_template() {
                 break
                 ;;
             4)
-                marzneshin_template
+                remnawave_template
                 break
                 ;;
             5)
-                marzneshin_logs_template
+                rebecca_template
                 break
                 ;;
             6)
-                marzban_template
+                marzneshin_template
                 break
                 ;;
             7)
-                marzban_logs_template
+                marzneshin_logs_template
                 break
                 ;;
             8)
-                mirzabot_template
+                marzban_template
                 break
                 ;;
             9)
-                walbot_template
+                marzban_logs_template
                 break
                 ;;
             10)
-                holderbot_template
+                mirzabot_template
                 break
                 ;;
             11)
+                walpanel_template
+                break
+                ;;
+            12)
+                holderbot_template
+                break
+                ;;
+            13)
                 marzhelp_template
+                break
+                ;;
+            14)
+                phantom_template
+                break
+                ;;
+            15)
+                ovpanel_template
+                break
+                ;;
+            16)
+                ovnode_template
+                break
+                ;;
+            17)
+                marzgozir_template
+                break
+                ;;
+            18)
+                pasarguard_template
                 break
                 ;;
             0)
@@ -382,6 +417,207 @@ toggle_directories() {
     BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
 }
 
+ovnode_template() {
+    log "Checking OvNode configuration..."
+
+    local OPENVPN_DB_FOLDER="/etc/openvpn"
+    local OVNODE_DB_FOLDER="/opt/ov-node"
+
+    # Check if the database file exists
+    if [ ! -f "$OPENVPN_DB_FOLDER" ]; then
+        error "OpenVPN file not found: $OPENVPN_DB_FOLDER"
+        return 1
+    fi
+    if [ ! -f "$OVNODE_DB_FOLDER" ]; then
+        error "Database file not found: $OVNODE_DB_FOLDER"
+        return 1
+    fi
+
+    # Add the database file to BACKUP_DIRECTORIES
+    add_directories "$OPENVPN_DB_FOLDER"
+    add_directories "$OVNODE_DB_FOLDER"
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete OvNode"
+    confirm
+}
+
+pasarguard_template() {
+    log "Checking PasarGuard configuration..."
+    local env_file="/opt/pasarguard/.env"
+
+    [[ -f "$env_file" ]] || { error "Environment file not found: $env_file"; return 1; }
+
+    local db_type db_name db_user db_password db_host db_port
+    local BACKUP_DIRECTORIES=("/var/lib/pasarguard")  
+
+    local DATABASE_URL=$(grep -v '^#' "$env_file" | grep 'SQLALCHEMY_DATABASE_URL' | awk -F '=' '{print $2}' | tr -d ' ' | tr -d '"' | tr -d "'")
+    log "Detected DATABASE_URL: $DATABASE_URL"
+    if [[ -z "$DATABASE_URL" || "$DATABASE_URL" == *"sqlite"* ]]; then
+        db_type="sqlite"
+        db_name=""
+        db_user=""
+        db_password=""
+        db_host=""
+        db_port=""
+    else
+        if [[ "$DATABASE_URL" =~ ^(postgresql|postgres|timescaledb)(\+[a-z0-9]+)?://([^:]+):([^@]+)@([^:]+):([0-9]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]}"
+            [[ "$db_type" == "postgres" ]] && db_type="postgresql"
+            [[ "$db_type" == "timescaledb" ]] && db_type="postgresql"
+            db_user="${BASH_REMATCH[3]}"
+            db_password="${BASH_REMATCH[4]}"
+            db_host="${BASH_REMATCH[5]}"
+            db_port="${BASH_REMATCH[6]}"
+            db_name="${BASH_REMATCH[7]}"
+        elif [[ "$DATABASE_URL" =~ ^(postgresql|postgres|timescaledb)(\+[a-z0-9]+)?://([^:]+):([^@]+)@([^/]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]}"
+            [[ "$db_type" == "postgres" ]] && db_type="postgresql"
+            [[ "$db_type" == "timescaledb" ]] && db_type="postgresql"
+            db_user="${BASH_REMATCH[3]}"
+            db_password="${BASH_REMATCH[4]}"
+            db_host="${BASH_REMATCH[5]}"
+            db_port="5432"
+            db_name="${BASH_REMATCH[6]}"
+        elif [[ "$DATABASE_URL" =~ ^(mysql|mariadb)(\+[a-z0-9]+)?://([^:]+):([^@]+)@([^:]+):([0-9]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]}"
+            db_user="${BASH_REMATCH[3]}"
+            db_password="${BASH_REMATCH[4]}"
+            db_host="${BASH_REMATCH[5]}"
+            db_port="${BASH_REMATCH[6]}"
+            db_name="${BASH_REMATCH[7]}"
+        elif [[ "$DATABASE_URL" =~ ^(mysql|mariadb)(\+[a-z0-9]+)?://([^:]+):([^@]+)@([^/]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]}"
+            db_user="${BASH_REMATCH[3]}"
+            db_password="${BASH_REMATCH[4]}"
+            db_host="${BASH_REMATCH[5]}"
+            db_port="3306"
+            db_name="${BASH_REMATCH[6]}"
+        else
+            error "Invalid DATABASE_URL format in $env_file."
+            return 1
+        fi
+    fi
+
+    add_directories "/opt/pasarguard"
+    add_directories "/var/lib/pasarguard"
+    
+    success "Database type: $db_type"
+    success "Database user: $db_user"
+    success "Database password: $db_password"
+    success "Database host: $db_host"
+    success "Database port: $db_port"
+    success "Database name: $db_name"
+
+    local DB_PATH="/root/_${REMARK}${DATABASE_SUFFIX}"
+    
+    if [[ "$db_type" == "postgresql" ]]; then
+        local pg_container=$(docker ps --filter "ancestor=postgres" --filter "ancestor=timescaledb/timescaledb" --format "{{.Names}}" | head -n 1)
+        if [[ -z "$pg_container" ]]; then
+            pg_container=$(docker ps --filter "publish=$db_port" --format "{{.Names}}" | head -n 1)
+        fi
+        BACKUP_DB_COMMAND="docker exec -e PGPASSWORD='$db_password' $pg_container pg_dump -U $db_user -d '$db_name' > $DB_PATH"
+        DIRECTORIES+=($DB_PATH)
+    elif [[ "$db_type" == "mysql" || "$db_type" == "mariadb" ]]; then
+        BACKUP_DB_COMMAND="mysqldump --column-statistics=0 -h $db_host -P $db_port -u $db_user -p'$db_password' '$db_name' > $DB_PATH"
+        DIRECTORIES+=($DB_PATH)
+    fi
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete PasarGuard"
+    confirm
+}
+
+
+marzgozir_template() {
+    log "Checking MarzGozir configuration..."
+
+    local MARZGOZIR_DB_FOLDER="/opt/marzgozir/data"
+
+    # Check if the database file exists
+    if [ ! -f "$MARZGOZIR_DB_FOLDER" ]; then
+        error "Database file not found: $MARZGOZIR_DB_FOLDER"
+        return 1
+    fi
+
+    # Add the database file to BACKUP_DIRECTORIES
+    add_directories "$MARZGOZIR_DB_FOLDER"
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete MarzGozir"
+    confirm
+}
+
+remnawave_template() {
+    log "Checking Remnawave configuration..."
+
+    local REMNAWAVE_DR="/opt/remnawave"
+    if [ ! -d "$REMNAWAVE_DR" ]; then
+        error "Directory not found: $REMNAWAVE_DR"
+        return 1
+    fi
+
+    env_file="/opt/remnawave/.env"
+    if [ ! -f "$env_file" ]; then
+        error "Environment file not found: $env_file"
+        return 1
+    fi
+
+    # Extract SQLALCHEMY_DATABASE_URL from .env file
+    local SQLALCHEMY_DATABASE_URL=$(grep -v '^#' "$env_file" | grep 'DATABASE_URL' | awk -F '=' '{print $2}' | tr -d ' ' | tr -d '"' | tr -d "'")
+
+    if [[ "$SQLALCHEMY_DATABASE_URL" =~ ^postgresql://([^:]+):([^@]+)@([^:]+):([0-9]+)/(.+)$ ]]; then
+        db_user="${BASH_REMATCH[1]}"
+        db_password="${BASH_REMATCH[2]}"
+        db_name="${BASH_REMATCH[5]}"
+    else
+        error "Invalid DATABASE_URL format in $env_file."
+        return 1
+    fi
+
+    add_directories "$REMNAWAVE_DR"
+    success "Database user: $db_user"
+    success "Database password: $db_password"
+    success "Database name: $db_name"
+
+    local DB_PATH="/root/_${REMARK}_${db_name}.sql"
+
+    BACKUP_DB_COMMAND="docker exec -e PGPASSWORD='$db_password' \$(docker ps --filter 'publish=6767' --format '{{.Names}}' | head -n 1) pg_dump -U $db_user '$db_name' > $DB_PATH"
+    DIRECTORIES+=($DB_PATH)
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete Remnawave"
+    confirm
+
+}
+
+
+ovpanel_template() {
+    log "Checking OvPanel configuration..."
+
+    local OVPANEL_DB_FOLDER="/opt/ov-panel"
+
+    # Check if the database file exists
+    if [ ! -f "$OVPANEL_DB_FOLDER" ]; then
+        error "Database file not found: $OVPANEL_DB_FOLDER"
+        return 1
+    fi
+
+
+    # Add the database file to BACKUP_DIRECTORIES
+    add_directories "$OVPANEL_DB_FOLDER/data"
+    add_directories "$OVPANEL_DB_FOLDER/.env"
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete OvPanel"
+    confirm
+}
+
 holderbot_template() {
     log "Checking HolderBot configuration..."
     
@@ -403,11 +639,11 @@ holderbot_template() {
     confirm
 }
 
-walbot_template() {
-    log "Checking WalBot configuration..."
+walpanel_template() {
+    log "Checking WalPanel configuration..."
     
     # Set default value for WALDB_FOLDER if not set
-    local WALDB_FOLDER="/opt/walbot/"
+    local WALDB_FOLDER="/opt/walpanel/app/data"
 
     # Check if the directory exists
     if [ ! -d "$WALDB_FOLDER" ]; then
@@ -420,9 +656,31 @@ walbot_template() {
 
     # Export backup variables
     BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
-    log "Complete WalBot"
+    log "Complete WalPanel"
     confirm
 }
+
+phantom_template() {
+    log "Checking Phantom configuration..."
+
+    # Set default value for PHANTOM_FOLDER if not set
+    local PHANTOM_FOLDER="/etc/phantom/config.db"
+
+    # Check if the directory exists
+    if [ ! -d "$PHANTOM_FOLDER" ]; then
+        error "Directory not found: $PHANTOM_FOLDER"
+        return 1
+    fi
+
+    # Add the directory to BACKUP_DIRECTORIES
+    add_directories "$PHANTOM_FOLDER"
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete Phantom"
+    confirm
+}
+
 
 xui_template() {
     log "Checking X-ui configuration..."
@@ -645,13 +903,76 @@ marzban_template() {
     local DB_PATH="/root/_${REMARK}${DATABASE_SUFFIX}"
     # Generate backup command for MySQL/MariaDB
     if [[ "$db_type" != "sqlite3" ]]; then
-        BACKUP_DB_COMMAND="mysqldump -h $db_host -P $db_port -u $db_user -p'$db_password' '$db_name' > $DB_PATH"
+        BACKUP_DB_COMMAND="mysqldump --column-statistics=0 -h $db_host -P $db_port -u $db_user -p'$db_password' '$db_name' > $DB_PATH"
         DIRECTORIES+=($DB_PATH)
     fi
 
     # Export backup variables
     BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
     log "Complete Marzban"
+    confirm
+}
+
+
+rebecca_template() {
+    log "Checking environment file..."
+    local env_file="/opt/rebecca/.env"
+
+    [[ -f "$env_file" ]] || { error "Environment file not found: $env_file"; return 1; }
+
+    local db_type db_name db_user db_password db_host db_port
+    local BACKUP_DIRECTORIES=("/var/lib/rebecca")  # Add default volume
+
+    # Extract SQLALCHEMY_DATABASE_URL from .env file
+    local SQLALCHEMY_DATABASE_URL=$(grep -v '^#' "$env_file" | grep 'SQLALCHEMY_DATABASE_URL' | awk -F '=' '{print $2}' | tr -d ' ' | tr -d '"' | tr -d "'")
+
+    if [[ -z "$SQLALCHEMY_DATABASE_URL" || "$SQLALCHEMY_DATABASE_URL" == *"sqlite3"* ]]; then
+        db_type="sqlite3"
+        db_name=""
+        db_user=""
+        db_password=""
+        db_host=""
+        db_port=""
+    else
+        # Parse SQLALCHEMY_DATABASE_URL to extract database details
+        if [[ "$SQLALCHEMY_DATABASE_URL" =~ ^(mysql\+pymysql|mariadb\+pymysql)://([^:]+):([^@]+)@([^:]+):([0-9]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]%%+*}"  # Extract mysql or mariadb
+            db_user="${BASH_REMATCH[2]}"
+            db_password="${BASH_REMATCH[3]}"
+            db_host="${BASH_REMATCH[4]}"
+            db_port="${BASH_REMATCH[5]}"
+            db_name="${BASH_REMATCH[6]}"
+        elif [[ "$SQLALCHEMY_DATABASE_URL" =~ ^(mysql\+pymysql|mariadb\+pymysql)://([^:]+):([^@]+)@([0-9.]+)/(.+)$ ]]; then
+            db_type="${BASH_REMATCH[1]%%+*}"  # Extract mysql or mariadb
+            db_user="${BASH_REMATCH[2]}"
+            db_password="${BASH_REMATCH[3]}"
+            db_host="${BASH_REMATCH[4]}"
+            db_port="3306"  # Default MySQL/MariaDB port
+            db_name="${BASH_REMATCH[5]}"
+        else
+            error "Invalid SQLALCHEMY_DATABASE_URL format in $env_file."
+            return 1
+        fi
+    fi
+    add_directories "/opt/rebecca"
+    add_directories "/var/lib/rebecca"
+    success "Database type: $db_type"
+    success "Database user: $db_user"
+    success "Database password: $db_password"
+    success "Database host: $db_host"
+    success "Database port: $db_port"
+    success "Database name: $db_name"
+
+    local DB_PATH="/root/_${REMARK}${DATABASE_SUFFIX}"
+    # Generate backup command for MySQL/MariaDB
+    if [[ "$db_type" != "sqlite3" ]]; then
+        BACKUP_DB_COMMAND="mysqldump --column-statistics=0 -h $db_host -P $db_port -u $db_user -p'$db_password' '$db_name' > $DB_PATH"
+        DIRECTORIES+=($DB_PATH)
+    fi
+
+    # Export backup variables
+    BACKUP_DIRECTORIES="${DIRECTORIES[*]}"
+    log "Complete Rebecca"
     confirm
 }
 
@@ -904,11 +1225,30 @@ telegram_progress() {
             fi
         done
 
+        while true; do
+            input "Enter the topic ID (Press Enter to skip): " TOPIC_ID
+            if [[ -z "$TOPIC_ID" ]]; then
+                success "No topic ID provided. Messages will be sent to the main chat."
+                TOPIC_ID=""
+                break
+            elif [[ ! "$TOPIC_ID" =~ ^[0-9]+$ ]]; then
+                wrong "Invalid topic ID format! Must be a number."
+            else
+                success "Topic ID set: $TOPIC_ID"
+                break
+            fi
+        done
+
         # Validate bot token and chat ID
         log "Checking Telegram bot..."
-        response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d chat_id="$CHAT_ID" -d text="Hi, Backuper Test Message!")
+        if [[ -n "$TOPIC_ID" ]]; then
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d chat_id="$CHAT_ID" -d message_thread_id="$TOPIC_ID" -d text="Hi, Backuper Test Message!")
+        else
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d chat_id="$CHAT_ID" -d text="Hi, Backuper Test Message!")
+        fi
+        
         if [[ "$response" -ne 200 ]]; then
-            wrong "Invalid bot token or chat ID, or Telegram API error! [tip: start bot]"
+            wrong "Invalid bot token, chat ID, topic ID, or Telegram API error! [tip: start bot]"
         else
             success "Bot token and chat ID are valid."
             break
@@ -916,7 +1256,12 @@ telegram_progress() {
     done
 
     # Set the platform command for sending files
-    PLATFORM_COMMAND="curl -s -F \"chat_id=$CHAT_ID\" -F \"document=@\$FILE\" -F \"caption=\$CAPTION\" -F \"parse_mode=HTML\" \"https://api.telegram.org/bot$BOT_TOKEN/sendDocument\""
+    if [[ -n "$TOPIC_ID" ]]; then
+        PLATFORM_COMMAND="curl -s -F \"chat_id=$CHAT_ID\" -F \"message_thread_id=$TOPIC_ID\" -F \"document=@\$FILE\" -F \"caption=\$CAPTION\" -F \"parse_mode=HTML\" \"https://api.telegram.org/bot$BOT_TOKEN/sendDocument\""
+    else
+        PLATFORM_COMMAND="curl -s -F \"chat_id=$CHAT_ID\" -F \"document=@\$FILE\" -F \"caption=\$CAPTION\" -F \"parse_mode=HTML\" \"https://api.telegram.org/bot$BOT_TOKEN/sendDocument\""
+    fi
+    
     CAPTION="
 📦 <b>From </b><code>\${ip}</code> [By <b><a href='https://t.me/ACh1992'>@ACh1992</a></b>]
 <b>➖➖➖➖Sponsor➖➖➖➖</b>
